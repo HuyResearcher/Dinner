@@ -183,22 +183,22 @@ class CuisineSelector {
             // Get current file content and SHA
             const getResponse = await fetch(`https://api.github.com/repos/${this.githubConfig.owner}/${this.githubConfig.repo}/contents/${this.githubConfig.path}`, {
                 headers: {
-                    'Authorization': `Bearer ${this.githubConfig.token}`,
+                    'Authorization': `token ${this.githubConfig.token}`,  // Changed from Bearer to token
                     'Accept': 'application/vnd.github.v3+json'
                 }
             });
 
-            if (!getResponse.ok) {
-                throw new Error(`Failed to get current file: ${getResponse.statusText}`);
-            }
-
-            const fileData = await getResponse.json();
             let existingData = [];
-            
-            try {
-                existingData = JSON.parse(atob(fileData.content));
-            } catch (error) {
-                console.warn('Could not parse existing data, starting fresh');
+            let sha = '';
+
+            if (getResponse.ok) {
+                const fileData = await getResponse.json();
+                try {
+                    existingData = JSON.parse(atob(fileData.content));
+                    sha = fileData.sha;
+                } catch (error) {
+                    console.warn('Could not parse existing data, starting fresh');
+                }
             }
 
             // Add new response
@@ -208,19 +208,21 @@ class CuisineSelector {
             const updateResponse = await fetch(`https://api.github.com/repos/${this.githubConfig.owner}/${this.githubConfig.repo}/contents/${this.githubConfig.path}`, {
                 method: 'PUT',
                 headers: {
-                    'Authorization': `Bearer ${this.githubConfig.token}`,
+                    'Authorization': `token ${this.githubConfig.token}`,  // Changed from Bearer to token
                     'Accept': 'application/vnd.github.v3+json',
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
                     message: `Add survey response ${newResponse.id}`,
                     content: btoa(JSON.stringify(existingData, null, 2)),
-                    sha: fileData.sha,
+                    sha: sha,
                     branch: 'main'
                 })
             });
 
             if (!updateResponse.ok) {
+                const errorData = await updateResponse.json();
+                console.error('GitHub API Error:', errorData);
                 throw new Error(`Failed to update file: ${updateResponse.statusText}`);
             }
 
@@ -230,7 +232,6 @@ class CuisineSelector {
             this.displayAllResponses();
             this.showMessage('Response saved successfully! 🎉');
 
-            console.log('Save successful');
             return true;
 
         } catch (error) {
