@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cuisine Selection - Dinner with Mr. Huy</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <!-- Add login button -->
+    <button id="loginTrigger" class="login-trigger">Admin Login</button>
+
+    <!-- Login Modal -->
+    <div id="loginModal" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>🔐 Admin Login</h2>
+                <button class="close-btn">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="login-form">
+                    <input type="text" id="userId" placeholder="User ID" class="login-input">
+                    <input type="password" id="password" placeholder="Password" class="login-input">
+                    <button class="btn btn-primary" id="loginBtn">Login</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <!-- Remove the previous login section -->
+        <!-- Start with Step 1 -->
+        <div class="step" id="step1">
+            <div class="content">
+                <h1 class="title">🍽️ Let's Plan Our Dinner!</h1>
+                <p class="subtitle">Choose your preference below</p>
+                <div class="button-container">
+                    <button class="btn btn-primary" id="btn1">I want to have a dinner with Mr. Huy</button>
+                    <button class="btn btn-secondary" id="btn2">I don't like him</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 2: Day Selection -->
+        <div class="step hidden" id="step2">
+            <div class="content">
+                <h1 class="title">🎉 Thank you, we will have a dinner this?</h1>
+                <div class="button-container">
+                    <button class="btn btn-choice" data-choice="Saturday">Saturday</button>
+                    <button class="btn btn-choice" data-choice="Sunday">Sunday</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 3: Cuisine Selection -->
+        <div class="step hidden" id="step3">
+            <div class="content">
+                <h1 class="title">🌍 What country cuisine do you want to try?</h1>
+                <div class="cuisine-grid">
+                    <button class="btn btn-cuisine" data-cuisine="North Vietnam">🇻🇳 North Vietnam</button>
+                    <button class="btn btn-cuisine" data-cuisine="South Vietnam">🇻🇳 South Vietnam</button>
+                    <button class="btn btn-cuisine" data-cuisine="Mid Vietnam">🇻🇳 Mid Vietnam</button>
+                    <button class="btn btn-cuisine" data-cuisine="South Korea">🇰🇷 South Korea</button>
+                    <button class="btn btn-cuisine" data-cuisine="Japan">🇯🇵 Japan</button>
+                    <button class="btn btn-cuisine" data-cuisine="Russia">🇷🇺 Russia</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 4: Final Confirmation -->
+        <div class="step hidden" id="step4">
+            <div class="content">
+                <h1 class="title">✨ Thank you for your time!</h1>
+                <p class="final-message">You must know that you can not roll back your choice</p>
+                <div class="summary">
+                    <h3>Your Selection Summary:</h3>
+                    <p id="summary-content"></p>
+                </div>
+                <button class="btn btn-primary" id="view-data">View All Responses</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Admin View Modal -->
+    <div id="adminView" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>📊 Response Data Monitor</h2>
+                <button class="close-btn">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="data-stats">
+                    <div class="stat-card">
+                        <h3>Total Responses</h3>
+                        <span id="totalResponses">0</span>
+                    </div>
+                    <div class="stat-card">
+                        <h3>Most Popular Day</h3>
+                        <span id="popularDay">-</span>
+                    </div>
+                    <div class="stat-card">
+                        <h3>Most Popular Cuisine</h3>
+                        <span id="popularCuisine">-</span>
+                    </div>
+                </div>
+                <div class="responses-list">
+                    <h3>All Responses:</h3>
+                    <div id="responsesList"></div>
+                </div>
+                <button class="btn btn-secondary" id="logoutBtn">Logout</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
