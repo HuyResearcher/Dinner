@@ -1,13 +1,17 @@
 class CuisineSelector {
     constructor() {
         this.currentStep = 1;
-        this.allResponses = JSON.parse(localStorage.getItem('cuisineResponses') || '[]');
         this.userData = {
             initialChoice: null,
             day: null,
             cuisine: null,
             timestamp: null
         };
+        // GitHub configuration
+        this.owner = 'YOUR_GITHUB_USERNAME'; // Replace with your GitHub username
+        this.repo = 'YOUR_REPO_NAME'; // Replace with your repository name
+        this.path = 'responses.json';
+        this.token = 'YOUR_GITHUB_TOKEN'; // Replace with your GitHub personal access token
         this.setupLoginHandlers();
     }
 
@@ -115,18 +119,80 @@ class CuisineSelector {
 
     async loadResponses() {
         try {
-            const response = await fetch('/api/responses');
+            const response = await fetch(`https://api.github.com/repos/${this.owner}/${this.repo}/contents/${this.path}`, {
+                headers: {
+                    'Authorization': `token ${this.token}`,
+                    'Accept': 'application/vnd.github.v3+json'
+                }
+            });
+            
             if (!response.ok) {
                 throw new Error('Failed to load responses');
             }
-            this.allResponses = await response.json();
+            
+            const data = await response.json();
+            const content = atob(data.content);
+            this.allResponses = JSON.parse(content);
+            return this.allResponses;
         } catch (error) {
             console.error('Error loading responses:', error);
             this.allResponses = [];
-            this.showMessage('Error loading responses. Please try again later.');
+            return [];
         }
     }
 
+    async saveResponse() {
+        try {
+            // First get the current file to get its SHA
+            const currentFile = await fetch(`https://api.github.com/repos/${this.owner}/${this.repo}/contents/${this.path}`, {
+                headers: {
+                    'Authorization': `token ${this.token}`,
+                    'Accept': 'application/vnd.github.v3+json'
+                }
+            });
+            
+            const fileData = await currentFile.json();
+            
+            // Get current responses
+            const currentContent = atob(fileData.content);
+            const responses = JSON.parse(currentContent);
+            
+            // Add new response
+            responses.push({
+                ...this.userData,
+                id: Date.now(),
+                timestamp: new Date().toISOString()
+            });
+            
+            // Update file in GitHub
+            const response = await fetch(`https://api.github.com/repos/${this.owner}/${this.repo}/contents/${this.path}`, {
+                method: 'PUT',
+                headers: {
+                    'Authorization': `token ${this.token}`,
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/vnd.github.v3+json'
+                },
+                body: JSON.stringify({
+                    message: 'Update survey responses',
+                    content: btoa(JSON.stringify(responses, null, 2)),
+                    sha: fileData.sha
+                })
+            });
+            
+            if (!response.ok) {
+                throw new Error('Failed to save response');
+            }
+            
+            this.allResponses = responses;
+            this.updateStats();
+            this.displayAllResponses();
+            
+        } catch (error) {
+            console.error('Error saving response:', error);
+            this.showMessage('Error saving your response. Please try again.');
+        }
+    }
+    
     bindEvents() {
         // Step 1 buttons
         document.getElementById('btn1').addEventListener('click', () => this.handleInitialChoice('yes'));
@@ -206,32 +272,6 @@ class CuisineSelector {
             <strong>Cuisine:</strong> ${this.userData.cuisine}<br>
             <strong>Time:</strong> ${new Date(this.userData.timestamp).toLocaleString()}
         `;
-    }
-
-    async saveResponse() {
-        try {
-            const response = await fetch('/api/responses', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(this.userData)
-            });
-            
-            const result = await response.json();
-            
-            if (result.success) {
-                // Update the local responses with the full dataset from server
-                this.allResponses = result.data;
-                this.updateStats();
-                this.displayAllResponses();
-            } else {
-                throw new Error('Failed to save response');
-            }
-        } catch (error) {
-            console.error('Error saving response:', error);
-            this.showMessage('Error saving your response. Please try again.');
-        }
     }
 
     showDataModal() {
