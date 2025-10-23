@@ -108,16 +108,18 @@ class CuisineSelector {
         });
     }
 
-    init() {
-        this.loadResponses();
+    async init() {
+        await this.loadResponses();
         this.bindEvents();
     }
 
-    loadResponses() {
-        // Load existing responses from localStorage
-        const savedResponses = localStorage.getItem('cuisineResponses');
-        if (savedResponses) {
-            this.allResponses = JSON.parse(savedResponses);
+    async loadResponses() {
+        try {
+            const response = await fetch('/api/responses');
+            this.allResponses = await response.json();
+        } catch (error) {
+            console.error('Error loading responses:', error);
+            this.allResponses = [];
         }
     }
 
@@ -202,10 +204,20 @@ class CuisineSelector {
         `;
     }
 
-    saveResponse() {
-        this.allResponses.push({...this.userData});
-        localStorage.setItem('cuisineResponses', JSON.stringify(this.allResponses));
-        this.updateStats();
+    async saveResponse() {
+        try {
+            await fetch('/api/responses', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(this.userData)
+            });
+            this.allResponses.push({...this.userData});
+            this.updateStats();
+        } catch (error) {
+            console.error('Error saving response:', error);
+        }
     }
 
     showDataModal() {
