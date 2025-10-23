@@ -207,47 +207,12 @@ class CuisineSelector {
         }
     }
 
-    displayAllResponses() {
-        const responsesList = document.getElementById('responsesList');
-        if (!responsesList) return;
-
-        responsesList.innerHTML = '';
-        
-        // Sort responses by timestamp, newest first
-        const sortedResponses = [...this.allResponses].sort((a, b) => 
-            new Date(b.timestamp) - new Date(a.timestamp)
-        );
-
-        sortedResponses.forEach(response => {
-            const responseItem = document.createElement('div');
-            responseItem.className = 'response-item';
-            responseItem.innerHTML = `
-                <p><strong>Choice:</strong> ${response.initialChoice === 'yes' ? 'Wants dinner' : 'Doesn\'t want dinner'}</p>
-                <p><strong>Day:</strong> ${response.day}</p>
-                <p><strong>Cuisine:</strong> ${response.cuisine}</p>
-                <p class="timestamp"><strong>Time:</strong> ${new Date(response.timestamp).toLocaleString()}</p>
-                <p class="user-agent"><small>Device: ${response.userAgent ? response.userAgent.split(')')[0] + ')' : 'Unknown'}</small></p>
-            `;
-            responsesList.appendChild(responseItem);
-        });
-    }
-
-    async init() {
-        try {
-            await this.loadResponses();
-            this.bindEvents();
-            console.log('Initialization complete');
-        } catch (error) {
-            console.error('Error during initialization:', error);
-        }
-    }
-
     bindEvents() {
         console.log('Binding events...');
         
         // Step 1 buttons
-        const btn1 = document.querySelector('.btn-primary:not(#loginBtn)');
-        const btn2 = document.querySelector('.btn-secondary:not(#logoutBtn)');
+        const btn1 = document.getElementById('btn1');
+        const btn2 = document.getElementById('btn2');
         
         console.log('Found buttons:', { btn1, btn2 });
         
@@ -259,14 +224,22 @@ class CuisineSelector {
             btn2.addEventListener('mouseenter', () => this.avoidButton(btn2));
         }
         
-        // Step 2 buttons
-        document.querySelectorAll('.btn-choice').forEach(btn => {
-            btn.addEventListener('click', (e) => this.handleDayChoice(e.target.dataset.choice));
+        // Step 2 buttons - Day Selection
+        const dayButtons = document.querySelectorAll('[data-choice]');
+        dayButtons.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const choice = e.target.getAttribute('data-choice');
+                this.handleDayChoice(choice);
+            });
         });
         
-        // Step 3 buttons
-        document.querySelectorAll('.btn-cuisine').forEach(btn => {
-            btn.addEventListener('click', (e) => this.handleCuisineChoice(e.target.dataset.cuisine));
+        // Step 3 buttons - Cuisine Selection
+        const cuisineButtons = document.querySelectorAll('[data-cuisine]');
+        cuisineButtons.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const cuisine = e.target.getAttribute('data-cuisine');
+                this.handleCuisineChoice(cuisine);
+            });
         });
         
         // View data button
@@ -277,6 +250,8 @@ class CuisineSelector {
                 this.displayAllResponses();
             });
         }
+
+        console.log('Events bound successfully');
     }
 
     avoidButton(button) {
@@ -437,7 +412,9 @@ class CuisineSelector {
 // Initialize when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
     try {
+        console.log('DOM loaded, initializing app...');
         const app = new CuisineSelector();
+        console.log('CuisineSelector created');
         app.init();
         console.log('App initialized');
     } catch (error) {
