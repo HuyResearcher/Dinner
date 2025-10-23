@@ -17,21 +17,51 @@ if (!fs.existsSync(dataFile)) {
 
 // Get all responses
 app.get('/api/responses', (req, res) => {
-    const data = JSON.parse(fs.readFileSync(dataFile));
-    res.json(data);
+    try {
+        // Read file synchronously with proper error handling
+        const rawData = fs.readFileSync(dataFile, 'utf8');
+        const data = JSON.parse(rawData);
+        res.json(data);
+    } catch (error) {
+        console.error('Error reading responses:', error);
+        res.status(500).json({ error: 'Failed to read responses' });
+    }
 });
 
 // Save new response
 app.post('/api/responses', (req, res) => {
-    const data = JSON.parse(fs.readFileSync(dataFile));
-    data.push({
-        ...req.body,
-        id: Date.now() // Add unique ID
-    });
-    fs.writeFileSync(dataFile, JSON.stringify(data, null, 2));
-    res.json({ success: true });
+    try {
+        // Read existing data
+        const rawData = fs.readFileSync(dataFile, 'utf8');
+        const data = JSON.parse(rawData);
+        
+        // Add new response with timestamp and IP
+        const newResponse = {
+            ...req.body,
+            id: Date.now(),
+            ip: req.ip,
+            timestamp: new Date().toISOString()
+        };
+        
+        data.push(newResponse);
+
+        // Write back to file
+        fs.writeFileSync(dataFile, JSON.stringify(data, null, 2), 'utf8');
+        
+        // Send all responses back
+        res.json({ success: true, data: data });
+    } catch (error) {
+        console.error('Error saving response:', error);
+        res.status(500).json({ error: 'Failed to save response' });
+    }
 });
 
-app.listen(port, () => {
+// Error handling middleware
+app.use((err, req, res, next) => {
+    console.error(err.stack);
+    res.status(500).json({ error: 'Something went wrong!' });
+});
+
+app.listen(port, '0.0.0.0', () => {
     console.log(`Server running at http://localhost:${port}`);
 });

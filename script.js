@@ -116,10 +116,14 @@ class CuisineSelector {
     async loadResponses() {
         try {
             const response = await fetch('/api/responses');
+            if (!response.ok) {
+                throw new Error('Failed to load responses');
+            }
             this.allResponses = await response.json();
         } catch (error) {
             console.error('Error loading responses:', error);
             this.allResponses = [];
+            this.showMessage('Error loading responses. Please try again later.');
         }
     }
 
@@ -206,17 +210,27 @@ class CuisineSelector {
 
     async saveResponse() {
         try {
-            await fetch('/api/responses', {
+            const response = await fetch('/api/responses', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify(this.userData)
             });
-            this.allResponses.push({...this.userData});
-            this.updateStats();
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                // Update the local responses with the full dataset from server
+                this.allResponses = result.data;
+                this.updateStats();
+                this.displayAllResponses();
+            } else {
+                throw new Error('Failed to save response');
+            }
         } catch (error) {
             console.error('Error saving response:', error);
+            this.showMessage('Error saving your response. Please try again.');
         }
     }
 
