@@ -7,11 +7,13 @@ class CuisineSelector {
             cuisine: null,
             timestamp: null
         };
-        // GitHub configuration
-        this.owner = 'YOUR_GITHUB_USERNAME'; // Replace with your GitHub username
-        this.repo = 'YOUR_REPO_NAME'; // Replace with your repository name
-        this.path = 'responses.json';
-        this.token = 'YOUR_GITHUB_TOKEN'; // Replace with your GitHub personal access token
+        this.allResponses = [];
+        this.githubConfig = {
+            owner: config.GITHUB_USERNAME,
+            repo: config.GITHUB_REPO,
+            path: config.RESPONSES_PATH,
+            token: config.GITHUB_TOKEN
+        };
         this.setupLoginHandlers();
     }
 
@@ -42,15 +44,21 @@ class CuisineSelector {
             });
         });
 
+        // Add auto-refresh for admin view
+        let refreshInterval;
+        
         // Handle login
-        loginBtn.addEventListener('click', () => {
+        loginBtn.addEventListener('click', async () => {
             const userId = document.getElementById('userId').value;
             const password = document.getElementById('password').value;
 
             if (userId === ADMIN_CREDENTIALS.id && password === ADMIN_CREDENTIALS.password) {
                 loginModal.classList.add('hidden');
                 document.getElementById('adminView').classList.remove('hidden');
-                this.updateAdminView();
+                await this.loadResponses(); // Reload data when opening admin view
+                
+                // Set up auto-refresh every 30 seconds
+                refreshInterval = setInterval(() => this.loadResponses(), 30000);
             } else {
                 alert('Invalid credentials!');
             }
@@ -60,6 +68,7 @@ class CuisineSelector {
         if (logoutBtn) {
             logoutBtn.addEventListener('click', () => {
                 document.getElementById('adminView').classList.add('hidden');
+                clearInterval(refreshInterval);
             });
         }
 
@@ -119,20 +128,26 @@ class CuisineSelector {
 
     async loadResponses() {
         try {
-            const response = await fetch(`https://api.github.com/repos/${this.owner}/${this.repo}/contents/${this.path}`, {
+            const response = await fetch(`https://api.github.com/repos/${this.githubConfig.owner}/${this.githubConfig.repo}/contents/${this.githubConfig.path}`, {
                 headers: {
-                    'Authorization': `token ${this.token}`,
+                    'Authorization': `token ${this.githubConfig.token}`,
                     'Accept': 'application/vnd.github.v3+json'
                 }
             });
-            
+
             if (!response.ok) {
                 throw new Error('Failed to load responses');
             }
-            
+
             const data = await response.json();
             const content = atob(data.content);
             this.allResponses = JSON.parse(content);
+            this.updateStats();
+            this.displayAllResponses();
+            
+            // Store SHA for future updates
+            this.currentSHA = data.sha;
+            
             return this.allResponses;
         } catch (error) {
             console.error('Error loading responses:', error);
@@ -143,56 +158,80 @@ class CuisineSelector {
 
     async saveResponse() {
         try {
-            // First get the current file to get its SHA
-            const currentFile = await fetch(`https://api.github.com/repos/${this.owner}/${this.repo}/contents/${this.path}`, {
-                headers: {
-                    'Authorization': `token ${this.token}`,
-                    'Accept': 'application/vnd.github.v3+json'
-                }
-            });
+            // Reload responses first to get latest data
+            await this.loadResponses();
             
-            const fileData = await currentFile.json();
-            
-            // Get current responses
-            const currentContent = atob(fileData.content);
-            const responses = JSON.parse(currentContent);
-            
-            // Add new response
-            responses.push({
+            // Add new response to the array
+            const newResponse = {
                 ...this.userData,
                 id: Date.now(),
-                timestamp: new Date().toISOString()
-            });
+                timestamp: new Date().toISOString(),
+                userAgent: navigator.userAgent,
+                datetime: new Date().toISOString()
+            };
             
+            this.allResponses.push(newResponse);
+
             // Update file in GitHub
-            const response = await fetch(`https://api.github.com/repos/${this.owner}/${this.repo}/contents/${this.path}`, {
+            const response = await fetch(`https://api.github.com/repos/${this.githubConfig.owner}/${this.githubConfig.repo}/contents/${this.githubConfig.path}`, {
                 method: 'PUT',
                 headers: {
-                    'Authorization': `token ${this.token}`,
+                    'Authorization': `token ${this.githubConfig.token}`,
                     'Content-Type': 'application/json',
                     'Accept': 'application/vnd.github.v3+json'
                 },
                 body: JSON.stringify({
                     message: 'Update survey responses',
-                    content: btoa(JSON.stringify(responses, null, 2)),
-                    sha: fileData.sha
+                    content: btoa(JSON.stringify(this.allResponses, null, 2)),
+                    sha: this.currentSHA
                 })
             });
-            
+
             if (!response.ok) {
                 throw new Error('Failed to save response');
             }
-            
-            this.allResponses = responses;
+
+            // Update UI
             this.updateStats();
             this.displayAllResponses();
+            this.showMessage('Response saved successfully!');
             
         } catch (error) {
             console.error('Error saving response:', error);
             this.showMessage('Error saving your response. Please try again.');
         }
     }
-    
+
+    displayAllResponses() {
+        const responsesList = document.getElementById('responsesList');
+        if (!responsesList) return;
+
+        responsesList.innerHTML = '';
+        
+        // Sort responses by timestamp, newest first
+        const sortedResponses = [...this.allResponses].sort((a, b) => 
+            new Date(b.timestamp) - new Date(a.timestamp)
+        );
+
+        sortedResponses.forEach(response => {
+            const responseItem = document.createElement('div');
+            responseItem.className = 'response-item';
+            responseItem.innerHTML = `
+                <p><strong>Choice:</strong> ${response.initialChoice === 'yes' ? 'Wants dinner' : 'Doesn\'t want dinner'}</p>
+                <p><strong>Day:</strong> ${response.day}</p>
+                <p><strong>Cuisine:</strong> ${response.cuisine}</p>
+                <p class="timestamp"><strong>Time:</strong> ${new Date(response.timestamp).toLocaleString()}</p>
+                <p class="user-agent"><small>Device: ${response.userAgent ? response.userAgent.split(')')[0] + ')' : 'Unknown'}</small></p>
+            `;
+            responsesList.appendChild(responseItem);
+        });
+    }
+
+    async init() {
+        await this.loadResponses();
+        this.bindEvents();
+    }
+
     bindEvents() {
         // Step 1 buttons
         document.getElementById('btn1').addEventListener('click', () => this.handleInitialChoice('yes'));
@@ -311,13 +350,21 @@ class CuisineSelector {
         if (!responsesList) return;
 
         responsesList.innerHTML = '';
-        this.allResponses.forEach(response => {
+        
+        // Sort responses by timestamp, newest first
+        const sortedResponses = [...this.allResponses].sort((a, b) => 
+            new Date(b.timestamp) - new Date(a.timestamp)
+        );
+
+        sortedResponses.forEach(response => {
             const responseItem = document.createElement('div');
             responseItem.className = 'response-item';
             responseItem.innerHTML = `
-                <p>Day: ${response.day}</p>
-                <p>Cuisine: ${response.cuisine}</p>
-                <p class="timestamp">Time: ${new Date(response.timestamp).toLocaleString()}</p>
+                <p><strong>Choice:</strong> ${response.initialChoice === 'yes' ? 'Wants dinner' : 'Doesn\'t want dinner'}</p>
+                <p><strong>Day:</strong> ${response.day}</p>
+                <p><strong>Cuisine:</strong> ${response.cuisine}</p>
+                <p class="timestamp"><strong>Time:</strong> ${new Date(response.timestamp).toLocaleString()}</p>
+                <p class="user-agent"><small>Device: ${response.userAgent ? response.userAgent.split(')')[0] + ')' : 'Unknown'}</small></p>
             `;
             responsesList.appendChild(responseItem);
         });
