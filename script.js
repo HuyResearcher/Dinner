@@ -123,11 +123,18 @@ class CuisineSelector {
 
     async init() {
         try {
+            console.log('Initializing with config:', {
+                owner: this.githubConfig.owner,
+                repo: this.githubConfig.repo,
+                path: this.githubConfig.path
+            });
+            
             await this.loadResponses();
             this.bindEvents();
             console.log('Initialization complete');
         } catch (error) {
             console.error('Error during initialization:', error);
+            this.showMessage('Error initializing application. Please refresh the page.');
         }
     }
 
@@ -171,60 +178,65 @@ class CuisineSelector {
                 userAgent: navigator.userAgent
             };
 
-            // Try to get existing file first
-            let existingData = [];
-            let sha = '';
+            console.log('Saving response:', newResponse);
 
-            try {
-                const getResponse = await fetch(`https://api.github.com/repos/${this.githubConfig.owner}/${this.githubConfig.repo}/contents/${this.githubConfig.path}`, {
-                    headers: {
-                        'Authorization': `token ${this.githubConfig.token}`,
-                        'Accept': 'application/vnd.github.v3+json'
-                    }
-                });
-
-                if (getResponse.ok) {
-                    const fileData = await getResponse.json();
-                    existingData = JSON.parse(atob(fileData.content));
-                    sha = fileData.sha;
+            // Get current file content and SHA
+            const getResponse = await fetch(`https://api.github.com/repos/${this.githubConfig.owner}/${this.githubConfig.repo}/contents/${this.githubConfig.path}`, {
+                headers: {
+                    'Authorization': `Bearer ${this.githubConfig.token}`,
+                    'Accept': 'application/vnd.github.v3+json'
                 }
-            } catch (error) {
-                console.log('No existing file found, creating new one');
+            });
+
+            if (!getResponse.ok) {
+                throw new Error(`Failed to get current file: ${getResponse.statusText}`);
             }
 
-            // Add new response to existing data
+            const fileData = await getResponse.json();
+            let existingData = [];
+            
+            try {
+                existingData = JSON.parse(atob(fileData.content));
+            } catch (error) {
+                console.warn('Could not parse existing data, starting fresh');
+            }
+
+            // Add new response
             existingData.push(newResponse);
 
-            // Save to GitHub
-            const response = await fetch(`https://api.github.com/repos/${this.githubConfig.owner}/${this.githubConfig.repo}/contents/${this.githubConfig.path}`, {
+            // Update file
+            const updateResponse = await fetch(`https://api.github.com/repos/${this.githubConfig.owner}/${this.githubConfig.repo}/contents/${this.githubConfig.path}`, {
                 method: 'PUT',
                 headers: {
-                    'Authorization': `token ${this.githubConfig.token}`,
+                    'Authorization': `Bearer ${this.githubConfig.token}`,
+                    'Accept': 'application/vnd.github.v3+json',
                     'Content-Type': 'application/json',
-                    'Accept': 'application/vnd.github.v3+json'
                 },
                 body: JSON.stringify({
-                    message: 'Update survey responses',
+                    message: `Add survey response ${newResponse.id}`,
                     content: btoa(JSON.stringify(existingData, null, 2)),
-                    sha: sha // Include SHA if updating existing file
+                    sha: fileData.sha,
+                    branch: 'main'
                 })
             });
 
-            if (!response.ok) {
-                throw new Error(`Failed to save response: ${response.statusText}`);
+            if (!updateResponse.ok) {
+                throw new Error(`Failed to update file: ${updateResponse.statusText}`);
             }
 
             // Update local data
             this.allResponses = existingData;
             this.updateStats();
             this.displayAllResponses();
-            this.showMessage('Response saved successfully!');
-            
-            console.log('Response saved successfully:', newResponse);
-            
+            this.showMessage('Response saved successfully! 🎉');
+
+            console.log('Save successful');
+            return true;
+
         } catch (error) {
             console.error('Error saving response:', error);
-            this.showMessage('Error saving your response. Please try again.');
+            this.showMessage('Error saving response. Please try again.');
+            return false;
         }
     }
 
