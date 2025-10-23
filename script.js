@@ -122,8 +122,13 @@ class CuisineSelector {
     }
 
     async init() {
-        await this.loadResponses();
-        this.bindEvents();
+        try {
+            await this.loadResponses();
+            this.bindEvents();
+            console.log('Initialization complete');
+        } catch (error) {
+            console.error('Error during initialization:', error);
+        }
     }
 
     async loadResponses() {
@@ -228,18 +233,31 @@ class CuisineSelector {
     }
 
     async init() {
-        await this.loadResponses();
-        this.bindEvents();
+        try {
+            await this.loadResponses();
+            this.bindEvents();
+            console.log('Initialization complete');
+        } catch (error) {
+            console.error('Error during initialization:', error);
+        }
     }
 
     bindEvents() {
+        console.log('Binding events...');
+        
         // Step 1 buttons
-        document.getElementById('btn1').addEventListener('click', () => this.handleInitialChoice('yes'));
-        document.getElementById('btn2').addEventListener('click', () => this.handleInitialChoice('no'));
+        const btn1 = document.querySelector('.btn-primary:not(#loginBtn)');
+        const btn2 = document.querySelector('.btn-secondary:not(#logoutBtn)');
+        
+        console.log('Found buttons:', { btn1, btn2 });
+        
+        if (btn1) btn1.addEventListener('click', () => this.handleInitialChoice('yes'));
+        if (btn2) btn2.addEventListener('click', () => this.handleInitialChoice('no'));
         
         // Button 2 avoidance behavior
-        const btn2 = document.getElementById('btn2');
-        btn2.addEventListener('mouseenter', () => this.avoidButton(btn2));
+        if (btn2) {
+            btn2.addEventListener('mouseenter', () => this.avoidButton(btn2));
+        }
         
         // Step 2 buttons
         document.querySelectorAll('.btn-choice').forEach(btn => {
@@ -251,14 +269,14 @@ class CuisineSelector {
             btn.addEventListener('click', (e) => this.handleCuisineChoice(e.target.dataset.cuisine));
         });
         
-        // Data monitor
-        document.getElementById('view-data').addEventListener('click', () => this.showDataModal());
-        document.getElementById('closeModal').addEventListener('click', () => this.hideDataModal());
-        
-        // Close modal on outside click
-        document.getElementById('dataModal').addEventListener('click', (e) => {
-            if (e.target.id === 'dataModal') this.hideDataModal();
-        });
+        // View data button
+        const viewDataBtn = document.getElementById('view-data');
+        if (viewDataBtn) {
+            viewDataBtn.addEventListener('click', () => {
+                document.getElementById('adminView').classList.remove('hidden');
+                this.displayAllResponses();
+            });
+        }
     }
 
     avoidButton(button) {
@@ -314,12 +332,18 @@ class CuisineSelector {
     }
 
     showDataModal() {
-        document.getElementById('dataModal').classList.remove('hidden');
-        this.displayAllResponses();
+        const adminView = document.getElementById('adminView');
+        if (adminView) {
+            adminView.classList.remove('hidden');
+            this.displayAllResponses();
+        }
     }
 
     hideDataModal() {
-        document.getElementById('dataModal').classList.add('hidden');
+        const adminView = document.getElementById('adminView');
+        if (adminView) {
+            adminView.classList.add('hidden');
+        }
     }
 
     updateStats() {
@@ -412,8 +436,13 @@ class CuisineSelector {
 
 // Initialize when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
-    const app = new CuisineSelector();
-    app.init();
+    try {
+        const app = new CuisineSelector();
+        app.init();
+        console.log('App initialized');
+    } catch (error) {
+        console.error('Error creating app:', error);
+    }
 });
 
 // Add some fun animations
