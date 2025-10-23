@@ -163,21 +163,39 @@ class CuisineSelector {
 
     async saveResponse() {
         try {
-            // Reload responses first to get latest data
-            await this.loadResponses();
-            
-            // Add new response to the array
+            // Create new response object
             const newResponse = {
                 ...this.userData,
                 id: Date.now(),
                 timestamp: new Date().toISOString(),
-                userAgent: navigator.userAgent,
-                datetime: new Date().toISOString()
+                userAgent: navigator.userAgent
             };
-            
-            this.allResponses.push(newResponse);
 
-            // Update file in GitHub
+            // Try to get existing file first
+            let existingData = [];
+            let sha = '';
+
+            try {
+                const getResponse = await fetch(`https://api.github.com/repos/${this.githubConfig.owner}/${this.githubConfig.repo}/contents/${this.githubConfig.path}`, {
+                    headers: {
+                        'Authorization': `token ${this.githubConfig.token}`,
+                        'Accept': 'application/vnd.github.v3+json'
+                    }
+                });
+
+                if (getResponse.ok) {
+                    const fileData = await getResponse.json();
+                    existingData = JSON.parse(atob(fileData.content));
+                    sha = fileData.sha;
+                }
+            } catch (error) {
+                console.log('No existing file found, creating new one');
+            }
+
+            // Add new response to existing data
+            existingData.push(newResponse);
+
+            // Save to GitHub
             const response = await fetch(`https://api.github.com/repos/${this.githubConfig.owner}/${this.githubConfig.repo}/contents/${this.githubConfig.path}`, {
                 method: 'PUT',
                 headers: {
@@ -187,19 +205,22 @@ class CuisineSelector {
                 },
                 body: JSON.stringify({
                     message: 'Update survey responses',
-                    content: btoa(JSON.stringify(this.allResponses, null, 2)),
-                    sha: this.currentSHA
+                    content: btoa(JSON.stringify(existingData, null, 2)),
+                    sha: sha // Include SHA if updating existing file
                 })
             });
 
             if (!response.ok) {
-                throw new Error('Failed to save response');
+                throw new Error(`Failed to save response: ${response.statusText}`);
             }
 
-            // Update UI
+            // Update local data
+            this.allResponses = existingData;
             this.updateStats();
             this.displayAllResponses();
             this.showMessage('Response saved successfully!');
+            
+            console.log('Response saved successfully:', newResponse);
             
         } catch (error) {
             console.error('Error saving response:', error);
@@ -278,11 +299,17 @@ class CuisineSelector {
     }
 
     handleCuisineChoice(cuisine) {
+        console.log('Handling cuisine choice:', cuisine);
         this.userData.cuisine = cuisine;
         this.userData.timestamp = new Date().toISOString();
-        this.saveResponse();
-        this.showSummary();
-        this.nextStep();
+        console.log('User data before saving:', this.userData);
+        this.saveResponse().then(() => {
+            console.log('Save response completed');
+            this.showSummary();
+            this.nextStep();
+        }).catch(error => {
+            console.error('Error in handleCuisineChoice:', error);
+        });
     }
 
     nextStep() {
